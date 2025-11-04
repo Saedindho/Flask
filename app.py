@@ -54,11 +54,61 @@ def register():
     # If the request method is POST, process the form submission
     if request.method == 'POST':
 
-        flash(category='success', message='The Form Was Posted Successfully!')
+        # Get the username and password from the form
+        username = request.form['username']
+        password = request.form['password']
+        repassword = request.form['repassword']
+
+        # Simple validation checks
+        error = None
+        if not username:
+            error = 'Username is required!'
+        elif not password or not repassword:
+            error = 'Password is required!'
+        elif password != repassword:
+            error = 'Passwords do not match!'
+
+        # Display appropriate flash messages
+        if error is None:
+                  flash(category='success', message=f"The Form Was Posted Successfully! Well Done {username}")
+        else:
+            flash(category='danger', message=error)
+
+        # [TO-DO]: Add real registration logic here (i.e., save to database)
     
     # If the request method is GET, just render the registration form
     return render_template('register.html', title="Register")
 
+
+# Login
+@app.route('/login/', methods=('GET', 'POST'))
+def login():
+
+    # If the request method is POST, process the login form
+    if request.method == 'POST':
+
+        # Get the username and password from the form
+        username = request.form['username']
+        password = request.form['password']
+
+        # Simple validation checks
+        error = None
+        if not username:
+            error = 'Username is required!'
+        elif not password:
+            error = 'Password is required!'
+        
+        # [TO-DO]: Add real authentication logic here
+
+        # Display appropriate flash messages
+        if error is None:
+            flash(category='success', message=f"Login successful! Welcome back {username}!")
+            return redirect(url_for('index'))
+        else:
+            flash(category='danger', message=f"Login failed: {error}")
+        
+    # If the request method is GET, render the login form
+    return render_template('login.html', title="Log In")
 
 # Global variable for site name: Used in templates to display the site name
 siteName = "SHU EFSSD Module"
