@@ -203,101 +203,116 @@ def film(id):
 @app.route('/create/', methods=('GET', 'POST'))
 def create():
 
+    user = session.get('user_id')  # Get the logged-in user's ID from the session
+    # Ensure user is logged in to add films
+    if user is None:
+        flash(category='warning', message='You must be logged in to add a film.')
+        return redirect(url_for('login'))
+
     # If the request method is POST, process the form submission
     if request.method == 'POST':
 
-        # Get the title input from the form
+        # Get the input from the form
         title = request.form['title']
+        tagline = request.form['tagline']
+        director = request.form['director']
+        release_year = request.form['release_year']
+        genre = request.form['genre']
+        watched = True if request.form.get('watched') == 'on' else False
+        rating = int(request.form['rating']) if request.form.get('rating') else None
+        review = request.form['review']
+        # [TO-DO] Image Upload
+        poster = request.form['poster']  # [TO-DO] Image Upload
 
         # Validate the input
         if not title:
             flash(category='danger', message='Title is required!')
-            return render_template('create.html')
+            return redirect(url_for('create'))
 
-        # [TO-DO]: Add real creation logic here (e.g. save to database record)
-        new_film = {
-            'user': 1,  # test user
-            'title': title,
-            'tagline': request.form.get('tagline', ''),
-            'director': request.form.get('director', ''),
-            'poster': request.form.get('poster', ''),
-            'release_year': request.form.get('release_year', 0),
-            'genre': request.form.get('genre', ''),
-            'watched': 'watched' in request.form,
-            'rating': request.form.get('rating', 0),
-            'review': request.form.get('review', '')
-        }
-        create_film(new_film)
-        # ===========================
-
+        # Use the database function to insert the new film
+        create_film(user, title, tagline, director, poster, release_year, genre, watched, rating, review)
+        
         # Flash a success message
         flash(category='success', message='Created successfully!')
         return redirect(url_for('films'))
-    
-    return render_template('create.html', title="Add A New Film")
 
-
+    return render_template('create.html')
 # Edit A Film Page
 @app.route('/update/<int:id>/', methods=('GET', 'POST'))
 def update(id):
+
     # Get film data
-    film_data = get_film_by_id(id)
-    if not film_data:
-        flash('Film not found!', 'warning')
+    film = get_film_by_id(id)
+
+    # Check for errors
+    error = None
+    if film is None:     # If film not found, add error message
+        error = 'Film not found!'
+        flash(category='warning', message=error)
+    elif film['user'] != session.get('user_id'):    # Check user is only accessing their own films
+        error = 'You do not have permission to edit this film.'
+        flash(category='danger', message=error)
+    # If there was an error, redirect to films list
+    if error:
         return redirect(url_for('films'))
 
     # If the request method is POST, process the form submission
     if request.method == 'POST':
 
-        # Get the title input from the form
+        # Get the input from the form
         title = request.form['title']
+        tagline = request.form['tagline']
+        director = request.form['director']
+        release_year = request.form['release_year']
+        genre = request.form['genre']
+        watched = False
+        if request.form.get('watched') == 'on':
+            watched = True
+        rating = None
+        if request.form.get('rating'):
+            rating = int(request.form['rating'])
+        review = request.form['review']
+        poster = film['poster']  # [TO-DO] Image Upload
 
         # Validate the input
         if not title:
             flash(category='danger', message='Title is required!')
-            return render_template('update.html', id=id)
+            return redirect(url_for('update', id=id))
+
+        # Use the database function to update the film
+        update_film(id, title, tagline, director, poster, release_year, genre, watched, rating, review)
         
-        # [TO-DO]: Add real update logic here (e.g. update database record)
-        updated_fields = {
-            'title': title,
-            'tagline': request.form.get('tagline', ''),
-            'director': request.form.get('director', ''),
-            'poster': request.form.get('poster', ''),
-            'release_year': request.form.get('release_year', 0),
-            'genre': request.form.get('genre', ''),
-            'watched': 'watched' in request.form,
-            'rating': request.form.get('rating', 0),
-            'review': request.form.get('review', '')
-        }
-
-        update_film(id, updated_fields)
-        # ===========================
-
-        # Flash a success message
+        # Flash a success message and redirect to the index page
         flash(category='success', message='Updated successfully!')
         return redirect(url_for('film', id=id))
 
-    return render_template('update.html', title="Update Film", film=film_data)
+    return render_template('update.html', film=film)
 
 # Delete A Film
 @app.route('/delete/<int:id>', methods=('POST',))
 def delete(id):
 
-    # [TO-DO]: Add real deletion logic here (e.g. delete database record)
-    delete_film(id)
-    # ===========================
+    # Get the film 
+    film = get_film_by_id(id)
+    # Check for errors
+    error = None
+    if film is None:     # If film not found, add error message
+        error = 'Film not found!'
+        flash(category='warning', message=error)
+    elif film['user'] != session.get('user_id'):    # Check user is only accessing their own films
+        error = 'You do not have permission to delete this film.'
+        flash(category='danger', message=error)
 
+    # If there was an error, redirect to films list
+    if error:
+        return redirect(url_for('films'))
+
+    # Use the database function to delete the film
+    delete_film(id)
+    
     # Flash a success message and redirect to the index page
     flash(category='success', message='Film deleted successfully!')
     return redirect(url_for('films'))
-
-
-# Global variable for site name: Used in templates to display the site name
-siteName = "SHU EFSSD Module"
-# Set the site name in the app context
-@app.context_processor
-def inject_site_name():
-    return dict(siteName=siteName)
 
 
 # Logout
