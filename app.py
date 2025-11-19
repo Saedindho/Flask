@@ -21,6 +21,16 @@ siteName = "SHU EFSSD Module"
 @app.context_processor
 def inject_site_name():
     return dict(siteName=siteName)
+
+
+# Helper function to get a username by user ID and provide it to templates 
+# eg: {{ film['user']|get_username }})
+@app.template_filter()
+def get_username(user_id):
+    user = get_user_by_id(user_id)
+    return user['username'] if user else 'Unknown'
+
+
 # Routes
 #===================
 # These define which template is loaded, or action is taken, depending on the URL requested
@@ -29,10 +39,17 @@ def inject_site_name():
 @app.route('/')
 def index():
     # This defines a variable 'studentName' that will be passed to the output HTML
-    studentName = "Saed"
-    # Render HTML with the name in a H1 tag
-    #return f"<h1>Hello, {studentName}!</h1>"
-    return render_template('index.html', title="Welcome", username=studentName)
+    studentName = "SHU Student"
+    # If a ‘username’ exists in the session data, use this instead
+    if 'username' in session:
+        studentName = session['username']
+
+    # Get a list of films to display on the homepage
+    films = get_all_films(limit=5, order_by='created DESC')  # Fetch the latest 5 films added
+
+    # Render the 'index.html' template and pass the 'name' variable to it and a title to set the page title dynamically
+    return render_template('index.html', title="Welcome", username=studentName, films=films)
+
 # About Page
 @app.route('/about')
 def about():
@@ -139,11 +156,31 @@ def login():
 @app.route('/films/')
 def films():
 
+    user_id = session.get('user_id')  # Get the logged-in user's ID from the session
+
+    # Ensure user is logged in to view films
+    if user_id is None:
+        flash(category='warning', message='You must be logged in to view this page.')
+        return redirect(url_for('login'))
+    
     # Get films list data
-    film_list = get_all_films()  
+    film_list = get_all_films(user_id)  
 
     # Render the films.html template with a list of films
-    return render_template('films.html', title="All Films", films=film_list)
+    return render_template('films.html', title="Your Films", films=film_list, films_user=user_id)
+
+# Users Films List Page
+@app.route('/films/<int:user_id>/')
+def userFilms(user_id):
+    
+    # Get films list data
+    film_list = get_all_films(user_id)  
+
+    # Get user info
+    user = get_user_by_id(user_id)
+
+    # Render the films.html template with a list of films
+    return render_template('films.html', title=f"Films added by {user['username']}", films=film_list, films_user=user_id)
 
 # Film Detail Page
 @app.route('/film/<int:id>/')
@@ -153,11 +190,13 @@ def film(id):
     film_data = get_film_by_id(id)  
 
     if film_data:
+        # Render the film.html template with film details
         return render_template('film.html', title=film_data['title'], film=film_data)
     else:
         # If film not found, redirect to films list with a flash message
         flash(category='warning', message='Requested film not found!')
         return redirect(url_for('films'))
+
 
 
 # Add A Film Page
