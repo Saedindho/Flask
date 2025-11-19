@@ -261,6 +261,15 @@ def inject_site_name():
     return dict(siteName=siteName)
 
 
+# Logout
+@app.route('/logout/')
+def logout():
+    # Clear the session and redirect to the index page with a flash message
+    session.clear()
+    flash(category='info', message='You have been logged out.')
+    return redirect(url_for('index'))
+
+
 # Run application
 #=========================================================
 # This code executes when the script is run directly.
